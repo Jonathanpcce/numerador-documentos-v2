@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Numerador de Documentos com Login</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+</head>
+<body>
+
+<div id="loginSection">
+    <h2>Login</h2>
+    <input type="email" id="email" placeholder="E-mail"><br><br>
+    <input type="password" id="password" placeholder="Senha"><br><br>
+    <button onclick="login()">Entrar</button>
+    <h3 id="loginError" style="color:red;"></h3>
+</div>
+
+<div id="appSection" style="display:none;">
+    <h1>Numerador de Documentos</h1>
+
+    <select id="tipoDocumento">
+        <option value="OFICIO">OFÍCIO</option>
+        <option value="OFICIO_CIRCULAR">OFÍCIO CIRCULAR</option>
+        <option value="PORTARIA">PORTARIA</option>
+        <option value="RELATORIO_TECNICO">RELATÓRIO TÉCNICO</option>
+        <option value="RELATORIO_INTELIGENCIA">RELATÓRIO DE INTELIGÊNCIA</option>
+        <option value="ORDEM_MISSAO">ORDEM DE MISSÃO</option>
+        <option value="COMUNICACAO_INTERNA">COMUNICAÇÃO INTERNA</option>
+    </select>
+
+    <br><br>
+
+    <button onclick="gerarNovoNumero()">NOVO NÚMERO</button>
+    <h2 id="numeroGerado"></h2>
+
+    <br><br>
+    <button onclick="logout()">Sair</button>
+</div>
+
+<script>
+    // CONFIGURAÇÃO DO SEU FIREBASE - Troque pelos dados do seu projeto Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyArGfzMM8hUDazdfguQF5ien8kA1NXPJUs",
+      authDomain: "numeradordedocumentos.firebaseapp.com",
+      databaseURL: "https://numeradordedocumentos-default-rtdb.firebaseio.com",
+      projectId: "numeradordedocumentos",
+      storageBucket: "numeradordedocumentos.firebasestorage.app",
+      messagingSenderId: "649811353519",
+      appId: "1:649811353519:web:3875fb6a9b638b5e5e995a"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const database = firebase.database();
+
+    // Função de login
+    function login() {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+
+        auth.signInWithEmailAndPassword(email, password)
+            .then(() => {
+                document.getElementById('loginSection').style.display = 'none';
+                document.getElementById('appSection').style.display = 'block';
+            })
+            .catch((error) => {
+                console.error(error);
+                document.getElementById('loginError').innerText = "E-mail ou senha incorretos.";
+            });
+    }
+
+    // Função de logout
+    function logout() {
+        auth.signOut().then(() => {
+            document.getElementById('loginSection').style.display = 'block';
+            document.getElementById('appSection').style.display = 'none';
+        });
+    }
+
+    // Função para gerar novo número
+    async function gerarNovoNumero() {
+        const tipo = document.getElementById('tipoDocumento').value;
+        const numeroRef = database.ref('numeros/' + tipo);
+
+        const snapshot = await numeroRef.once('value');
+        let numeroAtual = snapshot.val();
+
+        if (numeroAtual === null) {
+            numeroAtual = 0;
+        }
+
+        const novoNumero = numeroAtual + 1;
+        await numeroRef.set(novoNumero);
+
+        document.getElementById('numeroGerado').innerText = `${tipo.replace("_", " ")} Nº ${String(novoNumero).padStart(3, '0')}`;
+    }
+</script>
+
+</body>
+</html>
