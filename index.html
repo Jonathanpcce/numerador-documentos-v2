@@ -6,6 +6,50 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        .documento {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .documento h3 {
+            width: 220px;
+            margin: 0;
+        }
+        .numero {
+            width: 150px;
+            font-weight: bold;
+        }
+        .botao-novo {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .botao-novo:hover {
+            background-color: #218838;
+        }
+        #loginSection {
+            max-width: 300px;
+            margin: auto;
+            padding-top: 50px;
+        }
+        #appSection {
+            max-width: 800px;
+            margin: auto;
+            padding-top: 30px;
+        }
+        button {
+            margin-left: 10px;
+        }
+    </style>
 </head>
 <body>
 
@@ -18,29 +62,16 @@
 </div>
 
 <div id="appSection" style="display:none;">
-    <h1>Numerador de Documentos</h1>
+    <h1>Numerador de Documentos - DEPATRI</h1>
 
-    <select id="tipoDocumento">
-        <option value="OFICIO">OFÍCIO</option>
-        <option value="OFICIO_CIRCULAR">OFÍCIO CIRCULAR</option>
-        <option value="PORTARIA">PORTARIA</option>
-        <option value="RELATORIO_TECNICO">RELATÓRIO TÉCNICO</option>
-        <option value="RELATORIO_INTELIGENCIA">RELATÓRIO DE INTELIGÊNCIA</option>
-        <option value="ORDEM_MISSAO">ORDEM DE MISSÃO</option>
-        <option value="COMUNICACAO_INTERNA">COMUNICAÇÃO INTERNA</option>
-    </select>
-
-    <br><br>
-
-    <button onclick="gerarNovoNumero()">NOVO NÚMERO</button>
-    <h2 id="numeroGerado"></h2>
+    <div id="documentos"></div>
 
     <br><br>
     <button onclick="logout()">Sair</button>
 </div>
 
 <script>
-    // CONFIGURAÇÃO DO SEU FIREBASE - Troque pelos dados do seu projeto Firebase
+    // CONFIGURAÇÃO DO SEU FIREBASE (seus dados já inseridos)
     const firebaseConfig = {
       apiKey: "AIzaSyArGfzMM8hUDazdfguQF5ien8kA1NXPJUs",
       authDomain: "numeradordedocumentos.firebaseapp.com",
@@ -55,35 +86,53 @@
     const auth = firebase.auth();
     const database = firebase.database();
 
-    // Função de login
-    function login() {
-        const email = document.getElementById('email').value;
-        const password = document.getElementById('password').value;
+    const tiposDocumentos = [
+        "OFICIO",
+        "OFICIO_CIRCULAR",
+        "PORTARIA",
+        "RELATORIO_TECNICO",
+        "RELATORIO_INTELIGENCIA",
+        "ORDEM_MISSAO",
+        "COMUNICACAO_INTERNA"
+    ];
 
-        auth.signInWithEmailAndPassword(email, password)
-            .then(() => {
-                document.getElementById('loginSection').style.display = 'none';
-                document.getElementById('appSection').style.display = 'block';
-            })
-            .catch((error) => {
-                console.error(error);
-                document.getElementById('loginError').innerText = "E-mail ou senha incorretos.";
-            });
-    }
+    async function carregarNumeros() {
+        const container = document.getElementById('documentos');
+        container.innerHTML = '';
 
-    // Função de logout
-    function logout() {
-        auth.signOut().then(() => {
-            document.getElementById('loginSection').style.display = 'block';
-            document.getElementById('appSection').style.display = 'none';
+        tiposDocumentos.forEach(async (tipo) => {
+            const div = document.createElement('div');
+            div.className = 'documento';
+            div.id = `div-${tipo}`;
+
+            const titulo = document.createElement('h3');
+            titulo.innerText = tipo.replace("_", " ").replace("_", " ");
+
+            const numeroAtual = document.createElement('span');
+            numeroAtual.className = 'numero';
+            numeroAtual.id = `numero-${tipo}`;
+            numeroAtual.innerText = "Carregando...";
+
+            const botao = document.createElement('button');
+            botao.className = 'botao-novo';
+            botao.innerText = 'NOVO NÚMERO';
+            botao.onclick = () => gerarNovoNumero(tipo);
+
+            div.appendChild(titulo);
+            div.appendChild(numeroAtual);
+            div.appendChild(botao);
+
+            container.appendChild(div);
+
+            // Carregar o último número atual
+            const snapshot = await database.ref('numeros/' + tipo).once('value');
+            const numero = snapshot.val();
+            numeroAtual.innerText = numero !== null ? `Nº ${String(numero).padStart(3, '0')}` : 'Nº 000';
         });
     }
 
-    // Função para gerar novo número
-    async function gerarNovoNumero() {
-        const tipo = document.getElementById('tipoDocumento').value;
+    async function gerarNovoNumero(tipo) {
         const numeroRef = database.ref('numeros/' + tipo);
-
         const snapshot = await numeroRef.once('value');
         let numeroAtual = snapshot.val();
 
@@ -94,7 +143,30 @@
         const novoNumero = numeroAtual + 1;
         await numeroRef.set(novoNumero);
 
-        document.getElementById('numeroGerado').innerText = `${tipo.replace("_", " ")} Nº ${String(novoNumero).padStart(3, '0')}`;
+        document.getElementById(`numero-${tipo}`).innerText = `Nº ${String(novoNumero).padStart(3, '0')}`;
+    }
+
+    function login() {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+
+        auth.signInWithEmailAndPassword(email, password)
+            .then(() => {
+                document.getElementById('loginSection').style.display = 'none';
+                document.getElementById('appSection').style.display = 'block';
+                carregarNumeros();
+            })
+            .catch((error) => {
+                console.error(error);
+                document.getElementById('loginError').innerText = "E-mail ou senha incorretos.";
+            });
+    }
+
+    function logout() {
+        auth.signOut().then(() => {
+            document.getElementById('loginSection').style.display = 'block';
+            document.getElementById('appSection').style.display = 'none';
+        });
     }
 </script>
 
